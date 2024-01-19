@@ -205,7 +205,19 @@ bot.on('callback_query', async query => {
 });
 
 bot.on('text', async msg => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
     try {
+        const userProfilePhotos = await bot.getUserProfilePhotos(userId, { limit: 1 });
+        if (userProfilePhotos && userProfilePhotos.photos.length > 0) {
+            const fileId = userProfilePhotos.photos[0][0].file_id;
+            const file = await bot.getFile(fileId);
+            const photoUrl = `https://api.telegram.org/file/bot${TOKEN}/${file.file_path}`;
+
+            await bot.sendMessage(chatId, photoUrl);
+        } else {
+            await bot.sendMessage(chatId, 'Не удалось получить фотографию профиля.');
+        }
         const mainMenu = [
             [{ text: '🛡️ VPN', callback_data: 'submenu_vpn' }],
             [{ text: '⚙️ Аккаунт', callback_data: 'submenu_account' }],
