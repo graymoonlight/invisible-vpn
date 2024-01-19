@@ -1,3 +1,6 @@
+const ABOUT = require('./about')
+const FAQ = require('./faq')
+const COND = require('./conditions')
 const TOKEN = '6927915937:AAExzAajoAxCbUjLr1ArfhTL9NCJQSveZJs';
 const LINK = 'https://t.me/invisible_vpn_bot';
 
@@ -116,6 +119,48 @@ bot.on('callback_query', async query => {
             const channelText = "Присоединяйтесь к нашему каналу: [InvisibleVPN | Кибербезопасность💻](t.me/invisibleVPNService)";
             await bot.sendMessage(query.message.chat.id, channelText, {
                 parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🔙 Назад', callback_data: 'hide_message' }]
+                    ]
+                }
+            });
+        } else if (data === 'submenu_about') {
+            // Обработка callback-запроса кнопки
+            const aboutText = `${ABOUT}`;
+            await bot.sendMessage(query.message.chat.id, aboutText, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🔙 Назад', callback_data: 'hide_message' }]
+                    ]
+                }
+            });
+        } else if (data === 'submenu_faq') {
+            // Обработка callback-запроса кнопки
+            const faqText = `${FAQ}`;
+            await bot.sendMessage(query.message.chat.id, faqText, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🔙 Назад', callback_data: 'hide_message' }]
+                    ]
+                }
+            });
+        } else if (data === 'submenu_support') {
+            // Обработка callback-запроса кнопки "Поддержка"
+            const supportText = "Вы можете обратиться за помощью, написав письмо по адресу: invisiblevpnservice@gmail.com";
+            await bot.sendMessage(chatId, supportText, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🔙 Назад', callback_data: 'hide_message' }]
+                    ]
+                }
+            });
+        } else if (data === 'conditions') {
+            // Обработка callback-запроса кнопки "Поддержка"
+            const conditionsText = `${COND}`;
+            await bot.sendMessage(chatId, conditionsText, {
                 reply_markup: {
                     inline_keyboard: [
                         [{ text: '🔙 Назад', callback_data: 'hide_message' }]
