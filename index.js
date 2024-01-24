@@ -89,6 +89,15 @@ const submenus = {
 
 // Обработчик callback-запросов
 bot.on('callback_query', async query => {
+    const countryMappings = {
+        'Germany': 'Германия',
+        'Japan': 'Япония',
+    };
+    
+    const flagMappings = {
+        'Germany': '🇩🇪',
+        'Japan': '🇯🇵',
+    };
     try {
         await logUserAction(query);
         const { data, message } = query;
@@ -184,8 +193,40 @@ bot.on('callback_query', async query => {
         } else if (data === 'my_vpn') {
             // Обработка callback-запроса кнопки "Мой VPN"
             const serverResponse = await api.getDataFromServer(chatId);
-            const text = `⭐Ваш ID: ${serverResponse.user_id}`+ '\n' +`⭐Дата регистрации: ${serverResponse.date_registaration}` + '\n' +`⭐Ваш VPN: ${serverResponse.transactions}`;
-            await bot.sendMessage(chatId, text, {
+        
+            // Проверка на валидность формата даты
+            const registrationDate = Date.parse(serverResponse.date_registaration);
+            if (isNaN(registrationDate)) {
+                console.error('Неверный формат даты регистрации:', serverResponse.date_registaration);
+                return;
+            }
+        
+            // Форматирование даты регистрации
+            const formattedRegistrationDate = new Date(registrationDate).toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+        
+            let vpnText = `⭐Ваш ID: ${serverResponse.user_id}\n⭐Дата регистрации: ${formattedRegistrationDate}\n`;
+        
+            // Проверка наличия покупок VPN
+            if (Array.isArray(serverResponse.transactions) && serverResponse.transactions.length > 0) {
+                vpnText += '⭐Ваши VPN соединения:\n\n';
+        
+                // Итерация по покупкам
+                const emogi = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣'];
+                serverResponse.transactions.forEach((purchase, index) => {
+                    const countryName = countryMappings[purchase.vpn_country] || purchase.vpn_country;
+                    vpnText += `${emogi[index]}🪼 Страна: ${countryName} ${flagMappings[purchase.vpn_country] || ''}\n`;
+                    vpnText += `       ⌚ Период: ${purchase.period} месяц${purchase.period > 1 ? 'а' : ''}\n`;
+                    vpnText += `       ⌛ Дней осталось: ${purchase.days_remaining}\n\n`;
+                });
+            } else {
+                vpnText += `❌${serverResponse.transactions}`;
+            }
+        
+            await bot.sendMessage(chatId, vpnText, {
                 reply_markup: {
                     inline_keyboard: [
                         [{ text: '🔙 Назад', callback_data: 'hide_message' }]

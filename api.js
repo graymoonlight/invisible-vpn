@@ -17,7 +17,7 @@ async function sendDataToServer(userId, photoUrl) {
 
 async function getDataFromServer(chatId) { 
     try {
-        const response = await axios.get(`${SERVER_URL}/api/users/one-user/${chatId}`); 
+        const response = await axios.get(`${SERVER_URL}/api/users/user-info/${chatId}`); 
         return response.data;
     } catch (error) {
         console.error('Ошибка при получении данных с сервера:', error.message);
