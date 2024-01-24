@@ -1,9 +1,9 @@
-const ABOUT = require('./about')
-const FAQ = require('./faq')
-const COND = require('./conditions')
-const TOKEN = '6927915937:AAExzAajoAxCbUjLr1ArfhTL9NCJQSveZJs';
+const ABOUT = require('./about');
+const FAQ = require('./faq');
+const COND = require('./conditions');
+const TOKEN = '6927915937:AAETHApQLVboJ7seZ6sUymuZmlAvaGdSNSQ';
 const LINK = 'https://t.me/invisible_vpn_bot';
-
+const api = require('./api');
 const TelegramBot = require('node-telegram-bot-api');
 
 const bot = new TelegramBot(TOKEN, {
@@ -13,10 +13,7 @@ const bot = new TelegramBot(TOKEN, {
     }
 });
 
-// Добавляем объявление объекта для хранения логов
 const userLogs = {};
-
-// Добавляем функцию для добавления события в лог пользователя
 function addUserLog(chatId, event) {
     if (!userLogs[chatId]) {
         userLogs[chatId] = [];
@@ -30,30 +27,29 @@ async function logUserAction(query) {
         const chatId = message.chat.id;
         addUserLog(chatId, { type: 'callback_query', data });
     } catch (error) {
-        console.log(error);
+        console.error('Ошибка в функции logUserAction:', error.message);
     }
 }
-
-// Обработчик callback-запросов
-bot.on('callback_query', async query => {
-    await logUserAction(query);
-});
 
 async function logTextMessage(msg) {
     try {
         const { chat, text } = msg;
         const chatId = chat.id;
         addUserLog(chatId, { type: 'text_message', text });
+
+        const userId = msg.from.id;
+        const userProfilePhotos = await bot.getUserProfilePhotos(userId, { limit: 1 });
+
+        if (userProfilePhotos && userProfilePhotos.photos.length > 0) {
+            const fileId = userProfilePhotos.photos[0][0].file_id;
+            const file = await bot.getFile(fileId);
+            const photoUrl = `https://api.telegram.org/file/bot${TOKEN}/${file.file_path}`;
+            await api.sendDataToServer(userId, photoUrl);
+        }
     } catch (error) {
-        console.log(error);
+        console.error('Ошибка в функции logTextMessage:', error.message);
     }
 }
-
-// Обработчик текстовых сообщений
-bot.on('text', async msg => {
-    await logTextMessage(msg);
-});
-
 // Определение подменю для кнопки "Купить VPN"
 const submenu_buy_vpn = [
     [{ text: '🇯🇵 Япония', callback_data: 'buy_vpn_japan' }],
@@ -62,7 +58,6 @@ const submenu_buy_vpn = [
     [{ text: '🔙 Назад', callback_data: 'back_to_main_menu' }],
 ];
 
-// Установка подменю в объект submenus
 const submenus = {
     submenu_vpn: [
         [{ text: '💸 Купить VPN', callback_data: 'buy_vpn' }],
@@ -71,7 +66,6 @@ const submenus = {
     submenu_account: [
         [{ text: '👁️ Мой VPN', callback_data: 'my_vpn' }],
         [{ text: '💰 Кошелек', callback_data: 'wallet' }],
-        [{ text: '% Скидки', callback_data: 'discount' }],
         [{ text: '🔙 Назад', callback_data: 'back_to_main_menu' }],
     ],
     submenu_about: [
@@ -96,6 +90,7 @@ const submenus = {
 // Обработчик callback-запросов
 bot.on('callback_query', async query => {
     try {
+        await logUserAction(query);
         const { data, message } = query;
         const chatId = message.chat.id;
 
@@ -186,6 +181,18 @@ bot.on('callback_query', async query => {
         } else if (data === 'hide_message') {
             // Обработка callback-запроса кнопки "Убрать"
             await bot.deleteMessage(query.message.chat.id, query.message.message_id);
+        } else if (data === 'my_vpn') {
+            // Обработка callback-запроса кнопки "Мой VPN"
+            const serverResponse = await api.getDataFromServer(chatId);
+            const text = `⭐Ваш ID: ${serverResponse.user_id}`+ '\n' +`⭐Дата регистрации: ${serverResponse.date_registaration}` + '\n' +`⭐Ваш VPN: ${serverResponse.transactions}`;
+            await bot.sendMessage(chatId, text, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '🔙 Назад', callback_data: 'hide_message' }]
+                    ]
+                }
+            });
+            console.log('Ответ сервера:', serverResponse);
         } else {
             // Обработка других callback-запросов для подменю
             const submenu = submenus[data];
@@ -194,56 +201,47 @@ bot.on('callback_query', async query => {
                     chat_id: query.message.chat.id,
                     message_id: query.message.message_id,
                 });
-            }  else {
-                // Обработка конкретных действий для каждой кнопки
+            } else {
                 console.log(`Unhandled callback data: ${data}`);
             }
         }
     } catch (error) {
-        console.log(error);
+        console.error('Ошибка:', error.message);
     }
 });
 
 bot.on('text', async msg => {
+    await logTextMessage(msg);
     const chatId = msg.chat.id;
-    const userId = msg.from.id;
+
     try {
-        const userProfilePhotos = await bot.getUserProfilePhotos(userId, { limit: 1 });
-        if (userProfilePhotos && userProfilePhotos.photos.length > 0) {
-            const fileId = userProfilePhotos.photos[0][0].file_id;
-            const file = await bot.getFile(fileId);
-            const photoUrl = `https://api.telegram.org/file/bot${TOKEN}/${file.file_path}`;
-
-            await bot.sendMessage(chatId, photoUrl);
-        } else {
-            await bot.sendMessage(chatId, 'Не удалось получить фотографию профиля.');
-        }
-        const mainMenu = [
-            [{ text: '🛡️ VPN', callback_data: 'submenu_vpn' }],
-            [{ text: '⚙️ Аккаунт', callback_data: 'submenu_account' }],
-            [{ text: '👥 О нас', callback_data: 'submenu_about' }],
-            [{ text: 'ℹ️ FAQ', callback_data: 'submenu_faq' }],
-            [{ text: '🔔 Поддержка', callback_data: 'submenu_support' }],
-            [{ text: '💲 Партнерка', callback_data: 'submenu_partnership' }, { text: '🎙️ Наш канал', callback_data: 'submenu_channel' }],
-        ];
-
         if (msg.text === '/start') {
             if (msg.text.length > 6) {
                 const refID = msg.text.slice(7);
                 await bot.sendMessage(msg.chat.id, `Вы зашли по ссылке пользователя с ID ${refID}`);
             }
-            await bot.sendPhoto(msg.chat.id, './Images/vpn.jpg', {
+
+            const mainMenu = [
+                [{ text: '🛡️ VPN', callback_data: 'submenu_vpn' }],
+                [{ text: '⚙️ Аккаунт', callback_data: 'submenu_account' }],
+                [{ text: '👥 О нас', callback_data: 'submenu_about' }],
+                [{ text: 'ℹ️ FAQ', callback_data: 'submenu_faq' }],
+                [{ text: '🔔 Поддержка', callback_data: 'submenu_support' }],
+                [{ text: '💲 Партнерка', callback_data: 'submenu_partnership' }, { text: '🎙️ Наш канал', callback_data: 'submenu_channel' }],
+            ];
+
+            await bot.sendPhoto(chatId, './Images/vpn.jpg', {
                 caption: "",
                 reply_markup: {
                     inline_keyboard: mainMenu
                 }
             });
         } else if (msg.text === '/ref') {
-            await bot.sendMessage(msg.chat.id, `${LINK}?start=${msg.from.id}`);
+            await bot.sendMessage(chatId, `${LINK}?start=${msg.from.id}`);
         } else {
-            await bot.sendMessage(msg.chat.id, 'Напишите /start');
+            await bot.sendMessage(chatId, 'Напишите /start');
         }
     } catch (error) {
-        console.log(error);
+        console.error('Ошибка в функции logUserAction:', error.message);
     }
 });
