@@ -50,13 +50,6 @@ async function logTextMessage(msg) {
         console.error('Ошибка в функции logTextMessage:', error.message);
     }
 }
-// Определение подменю для кнопки "Купить VPN"
-const submenu_buy_vpn = [
-    [{ text: '🇯🇵 Япония', callback_data: 'buy_vpn_japan' }],
-    [{ text: '🇩🇪 Германия', callback_data: 'buy_vpn_germany' }],
-    [{ text: '🇺🇸 США', callback_data: 'buy_vpn_usa' }],
-    [{ text: '🔙 Назад', callback_data: 'back_to_main_menu' }],
-];
 
 const submenus = {
     submenu_vpn: [
@@ -92,11 +85,19 @@ bot.on('callback_query', async query => {
     const countryMappings = {
         'Germany': 'Германия',
         'Japan': 'Япония',
+        'Netherlands': 'Нидерланды',
+        'Poland': 'Польша',
     };
     
     const flagMappings = {
         'Germany': '🇩🇪',
         'Japan': '🇯🇵',
+        'Netherlands': '🇳🇱',
+        'Poland': '🇵🇱',
+        'Германия': '🇩🇪',
+        'Япония': '🇯🇵',
+        'Нидерланды': '🇳🇱',
+        'Польша': '🇵🇱',
     };
     try {
         await logUserAction(query);
@@ -113,11 +114,17 @@ bot.on('callback_query', async query => {
                 [{ text: '🔔 Поддержка', callback_data: 'submenu_support' }],
                 [{ text: '💲 Партнерка', callback_data: 'submenu_partnership' }, { text: '🎙️ Наш канал', callback_data: 'submenu_channel' }],
             ];
-
-            await bot.editMessageReplyMarkup({ inline_keyboard: mainMenu }, {
-                chat_id: query.message.chat.id,
-                message_id: query.message.message_id,
+        
+            // Отправить новое сообщение с изображением и основным меню
+            await bot.sendPhoto(query.message.chat.id, './Images/vpn.jpg', {
+                caption: "",
+                reply_markup: {
+                    inline_keyboard: mainMenu
+                }
             });
+        
+            // Удалить старое сообщение с текстом
+            await bot.deleteMessage(query.message.chat.id, query.message.message_id);
         } else if (data === 'submenu_channel') {
             // Обработка callback-запроса кнопки
             const channelText = "Присоединяйтесь к нашему каналу: [InvisibleVPN | Кибербезопасность💻](t.me/invisibleVPNService)";
@@ -172,13 +179,35 @@ bot.on('callback_query', async query => {
                 }
             });
         } else if (data === 'buy_vpn') {
-            // Обработка callback-запроса кнопки "Купить VPN"
-            const submenu = submenu_buy_vpn;
-            if (submenu) {
-                await bot.editMessageReplyMarkup({ inline_keyboard: submenu }, {
-                    chat_id: query.message.chat.id,
-                    message_id: query.message.message_id,
-                });
+            try {
+                // Получите данные о серверах с использованием функции из библиотеки API
+                const servers = await api.getServers();
+        
+                // Разделите данные на две колонки (например, по половине)
+                const halfLength = Math.ceil(servers.length / 2);
+                const column1 = servers.slice(0, halfLength);
+                const column2 = servers.slice(halfLength);
+                // Создайте кнопки для каждой колонки с флагами
+                const submenu = [
+                    column1.map(server => (
+                        { text: `${server.server_country} ${flagMappings[server.server_country] || ''}`, callback_data: `buy_vpn_${server.server_country}` }
+                    )),
+                    column2.map(server => (
+                        { text: `${server.server_country} ${flagMappings[server.server_country] || ''} `, callback_data: `buy_vpn_${server.server_country}` }
+                    )),
+                    // Добавьте кнопку "Назад"
+                    [{ text: '🔙 Назад', callback_data: 'back_to_main_menu' }],
+                ];
+        
+                // Обновите сообщение новыми кнопками
+                if (submenu) {
+                    await bot.editMessageReplyMarkup({ inline_keyboard: submenu }, {
+                        chat_id: query.message.chat.id,
+                        message_id: query.message.message_id,
+                    });
+                }
+            } catch (error) {
+                console.error('Ошибка при создании кнопок для покупки VPN:', error.message);
             }
         } else if (data.startsWith('buy_vpn')) {
             // Обработка callback-запроса кнопки "Купить VPN - страна"
@@ -187,14 +216,68 @@ bot.on('callback_query', async query => {
             addUserLog(chatId, { type: 'buy_vpn', country });
             // Действия при выборе "Купить VPN - Страна"
             console.log(`Пользователь ${chatId} выбрал купить VPN в стране: ${country}`);
+            
+            // Отладочные строки
+            const servers = await api.getServers();
+            console.log('Сервера:', servers);
+        
+            const selectedServer = servers.find(server => server.server_country === country);
+            console.log('Выбранный сервер:', selectedServer);
+        
+            // Путь к изображению, которое вы хотите отправить
+            const imagePath = './Images/vpn.jpg';
+        
+            // Отправить изображение перед текстом
+            await bot.sendPhoto(chatId, imagePath, {
+                caption: `Чем больше срок подписки, тем больше скидка.\n\nВыбранная страна: ${country} ${flagMappings[country] || ''}`,
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: 'Купить на 12 месяцев (900 рублей)', callback_data: `buy_subscription_${country}_12`, dealPrice:'900' }],
+                        [{ text: 'Купить на 6 месяцев (600 рублей)', callback_data: `buy_subscription_${country}_6`, dealPrice:'600' }],
+                        [{ text: 'Купить на месяц (300 рублей)', callback_data: `buy_subscription_${country}_1`, dealPrice:'300' }],
+                        [{ text: '🔙 Назад', callback_data: 'back_to_main_menu' }],
+                    ]
+                }
+            });        
+        
+            // Удалить сообщение с выбором страны
+            await bot.deleteMessage(chatId, query.message.message_id);
+        } else if (data.startsWith('buy_subscription')) {
+            // Извлечение информации из callback-данных
+            const [,, country, months] = data.split('_');
+            console.log(`Пользователь ${chatId} выбрал купить VPN в стране ${country} на ${months} месяцев.`);
+        
+            // Определение dealPrice
+            const dealPrice = query.data.dealPrice;
+        
+            try {
+                // Получаем данные о серверах
+                const servers = await api.getServers();
+                const serverId = parseInt(data.replace('buy_vpn_server_', ''), 10);
+                // Находим сервер с выбранной страной
+                const selectedServer = servers.find(server => server.id === serverId);
+        
+                if (!selectedServer) {
+                    throw new Error(`Сервер для страны ${country} не найден.`);
+                }
+        
+                // Вызываем функцию sendTransaction для отправки данных на сервер
+                const transactionData = await api.sendTransaction(chatId, selectedServer.id, country, dealPrice, months);
+        
+                // Формируем ответ пользователю, используя данные из транзакции
+                const vpnKey = transactionData.vpnKey;
+                await bot.sendMessage(chatId, `Вы выбрали купить VPN в стране ${country} на ${months} месяцев. Спасибо за покупку! Ваш VPN-ключ:\n${vpnKey}`);
+            } catch (error) {
+                console.error('Ошибка при обработке покупки VPN:', error.message);
+                // Отправить сообщение об ошибке пользователю
+                await bot.sendMessage(chatId, 'Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте еще раз позже.');
+            }
         } else if (data === 'hide_message') {
             // Обработка callback-запроса кнопки "Убрать"
             await bot.deleteMessage(query.message.chat.id, query.message.message_id);
         } else if (data === 'my_vpn') {
             // Обработка callback-запроса кнопки "Мой VPN"
             const serverResponse = await api.getDataFromServer(chatId);
-        
-            // Проверка на валидность формата даты
             const registrationDate = Date.parse(serverResponse.date_registaration);
             if (isNaN(registrationDate)) {
                 console.error('Неверный формат даты регистрации:', serverResponse.date_registaration);
