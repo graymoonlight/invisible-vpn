@@ -47,8 +47,8 @@ async function getServers() {
 
 async function sendTransaction(userId, vpnCountry, dealPrice, period) {
     try {
+
         const servers = await axios.get(`${SERVER_URL}/api/servers/allservers`);
-        
         const selectedServer = servers.data.find(server => server.server_country === vpnCountry);
 
         if (!selectedServer) {
@@ -58,18 +58,26 @@ async function sendTransaction(userId, vpnCountry, dealPrice, period) {
         const response = await axios.post(`${SERVER_URL}/api/transaction/createtransaction`, {
             user_id: userId,
             server_id: selectedServer.id,
-            purchase_time: new Date().toISOString(),
-            expiration_time: new Date(Date.now() + period * 30 * 24 * 60 * 60 * 1000).toISOString(),
             vpn_country: vpnCountry,
             deal_price: dealPrice,
             period: period,
         });
-
+        console.log('Отправлено на сервер:', response.config.data);
         console.log('Успешно:', response.data);
         return response.data;
     } catch (error) {
         console.error('Ошибка при отправке данных на сервер:', error.message);
-        throw error; // добавлено для проброса ошибки наверх
+        throw error;
+    }
+}
+
+async function getPrice() {
+    try {
+        const response = await axios.get(`${SERVER_URL}/api/price/allprice`);
+        return response.data;
+    } catch (error) {
+        console.error('Ошибка при получении цен и периодов:', error.message);
+        throw error;
     }
 }
 
@@ -78,5 +86,6 @@ module.exports = {
     getDataFromServer,
     getServers,
     sendTransaction,
+    getPrice
 };
 

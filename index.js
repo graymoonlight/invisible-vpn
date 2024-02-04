@@ -226,20 +226,35 @@ bot.on('callback_query', async query => {
         
             // Путь к изображению, которое вы хотите отправить
             const imagePath = './Images/vpn.jpg';
-        
+            async function getPriceText(prices, country, months) {
+                try {
+                    // Находим цену для выбранной страны и периода
+                    const priceData = prices.find(price => price.period === months);
+            
+                    return priceData ? `${priceData.price} руб.` : 'н/д';
+                } catch (error) {
+                    console.error('Ошибка при получении цен:', error.message);
+                    throw error;
+                }            
+            }
+            
+            
+            // Отправить изображение перед текстом
+            const prices = await api.getPrice();
+            console.log('Цены:', prices);
+            
             // Отправить изображение перед текстом
             await bot.sendPhoto(chatId, imagePath, {
                 caption: `Чем больше срок подписки, тем больше скидка.\n\nВыбранная страна: ${country} ${flagMappings[country] || ''}`,
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: 'Купить на 12 месяцев (900 рублей)', callback_data: `buy_subscription_${country}_12`, dealPrice:'900' }],
-                        [{ text: 'Купить на 6 месяцев (600 рублей)', callback_data: `buy_subscription_${country}_6`, dealPrice:'600' }],
-                        [{ text: 'Купить на месяц (300 рублей)', callback_data: `buy_subscription_${country}_1`, dealPrice:'300' }],
+                        [{ text: `Купить на 12 месяцев ${await getPriceText(prices, country, 12)}`, callback_data: `buy_subscription_${country}_12`, price: prices.find(price => price.period === 12).price }],
+                        [{ text: `Купить на 3 месяца ${await getPriceText(prices, country, 3)}`, callback_data: `buy_subscription_${country}_3`, price: prices.find(price => price.period === 3).price }],
+                        [{ text: `Купить на месяц ${await getPriceText(prices, country, 1)}`, callback_data: `buy_subscription_${country}_1`, price: prices.find(price => price.period === 1).price }],
                         [{ text: '🔙 Назад', callback_data: 'back_to_main_menu' }],
                     ]
                 }
-            });        
-        
+            });    
             // Удалить сообщение с выбором страны
             await bot.deleteMessage(chatId, query.message.message_id);
         } else if (data.startsWith('buy_subscription')) {
@@ -248,25 +263,30 @@ bot.on('callback_query', async query => {
             console.log(`Пользователь ${chatId} выбрал купить VPN в стране ${country} на ${months} месяцев.`);
         
             // Определение dealPrice
-            const dealPrice = query.data.dealPrice;
         
             try {
                 // Получаем данные о серверах
                 const servers = await api.getServers();
-                const serverId = parseInt(data.replace('buy_vpn_server_', ''), 10);
+                const serverId = 1;
                 // Находим сервер с выбранной страной
-                const selectedServer = servers.find(server => server.id === serverId);
-        
+                console.log(message.error)
+                const selectedServer = servers.find(server => server.id === parseInt(serverId, 10));
+                dealPrice = 300;
                 if (!selectedServer) {
-                    throw new Error(`Сервер для страны ${country} не найден.`);
+                    try{
+                        console.log(selectedServer)
+                        throw new Error(`Сервер для страны ${country} не найден.`);
+                    } catch(error){
+                        console.error(error.message);
+                    }
                 }
         
                 // Вызываем функцию sendTransaction для отправки данных на сервер
-                const transactionData = await api.sendTransaction(chatId, selectedServer.id, country, dealPrice, months);
+                const transactionData = await api.sendTransaction(chatId, country, dealPrice, Number(months), selectedServer.id);
         
                 // Формируем ответ пользователю, используя данные из транзакции
                 const vpnKey = transactionData.vpnKey;
-                await bot.sendMessage(chatId, `Вы выбрали купить VPN в стране ${country} на ${months} месяцев. Спасибо за покупку! Ваш VPN-ключ:\n${vpnKey}`);
+                await bot.sendMessage(chatId, `Вы выбрали купить VPN в стране ${country} на ${months} месяцев. Спасибо за покупку! Ваш VPN-ключ:\n\`${vpnKey}\``, { parse_mode: 'Markdown' });
             } catch (error) {
                 console.error('Ошибка при обработке покупки VPN:', error.message);
                 // Отправить сообщение об ошибке пользователю
