@@ -8,10 +8,7 @@ async function sendDataToServer(userId, photoUrl) {
             id: userId,
             photo: photoUrl,
         });
-
-        console.log('Успешно:', response.data);
     } catch (error) {
-        console.error('Ошибка при отправке данных на сервер:', error.message);
     }
 }
 
