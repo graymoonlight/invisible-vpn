@@ -371,7 +371,8 @@ bot.on('text', async msg => {
                 [{ text: '👥 О нас', callback_data: 'submenu_about' }],
                 [{ text: 'ℹ️ FAQ', callback_data: 'submenu_faq' }],
                 [{ text: '🔔 Поддержка', callback_data: 'submenu_support' }],
-                [{ text: '💲 Партнерка', callback_data: 'submenu_partnership' }, { text: '🎙️ Наш канал', callback_data: 'submenu_channel' }],
+                //{ text: '💲 Партнерка', callback_data: 'submenu_partnership' }, 
+                [{ text: '🎙️ Наш канал', callback_data: 'submenu_channel' }],
             ];
 
             await bot.sendPhoto(chatId, './Images/vpn.jpg', {
